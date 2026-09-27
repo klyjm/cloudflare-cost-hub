@@ -74,6 +74,11 @@ jobs:
           database_name = "DATABASE_NAME_PLACEHOLDER"
           database_id = "DATABASE_ID_PLACEHOLDER"
 
+          # Workers Logs: makes console output from the daily cron (snapshot /
+          # alert failures) visible in the Cloudflare dashboard.
+          [observability]
+          enabled = true
+
           [triggers]
           crons = ["0 1 * * *"]
           EOF
