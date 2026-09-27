@@ -54,6 +54,22 @@ function cookieHeader(value: string, maxAge: number, secure: boolean): string {
   }`;
 }
 
+// Self-host allowlist: when ALLOWED_CF_USERS is set (comma-separated Cloudflare
+// user ids / login emails), only those identities may sign in. Empty/unset
+// keeps upstream's open registration.
+function isAllowed(env: Env, identity: { id: string; email: string }): boolean {
+  const raw = (env.ALLOWED_CF_USERS || '').trim();
+  if (!raw) return true;
+  const allowed = raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return (
+    allowed.includes(identity.id.toLowerCase()) ||
+    allowed.includes(identity.email.toLowerCase())
+  );
+}
+
 // Primary login: redirect the user to Cloudflare to authorize. No prior app
 // session is required — this IS the sign-in.
 cf.get('/login', async (c) => {
@@ -88,6 +104,13 @@ cf.get('/callback', async (c) => {
     const tokens = await exchangeCode(c.env, c.req.url, code, saved.verifier);
     const accounts = await listAccounts(tokens.access_token);
     const identity = await getIdentity(tokens.access_token, accounts);
+
+    // Reject identities that are not on the self-host allowlist (no user row,
+    // no session, no token storage).
+    if (!isAllowed(c.env, identity)) {
+      console.error('CF OAuth sign-in rejected by allowlist:', identity.id);
+      return c.redirect('/?login=denied');
+    }
 
     // Find or create the app user for this Cloudflare identity.
     let user = await findUserByEmail(c.env.DB, identity.email);

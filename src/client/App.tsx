@@ -13,12 +13,7 @@ const ServicesView = lazy(() =>
 );
 const BudgetView = lazy(() => import('./components/BudgetView').then((m) => ({ default: m.BudgetView })));
 const AlertsView = lazy(() => import('./components/AlertsView').then((m) => ({ default: m.AlertsView })));
-const ReportsView = lazy(() =>
-  import('./components/ReportsView').then((m) => ({ default: m.ReportsView }))
-);
 const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })));
-const Privacy = lazy(() => import('./components/Legal').then((m) => ({ default: m.Privacy })));
-const Terms = lazy(() => import('./components/Legal').then((m) => ({ default: m.Terms })));
 
 function Spinner() {
   return (
@@ -59,16 +54,12 @@ function App() {
   return (
     <Suspense fallback={<Spinner />}>
       <Routes>
-        {/* Public, unauthenticated pages linked from the OAuth consent screen. */}
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/terms" element={<Terms />} />
         {user ? (
           <Route element={<Layout onLogout={handleLogout} />}>
             <Route index element={<Dashboard />} />
             <Route path="services" element={<ServicesView />} />
             <Route path="budgets" element={<BudgetView />} />
             <Route path="alerts" element={<AlertsView />} />
-            <Route path="reports" element={<ReportsView />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

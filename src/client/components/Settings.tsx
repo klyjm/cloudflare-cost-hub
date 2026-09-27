@@ -49,9 +49,9 @@ export function Settings() {
         method: 'POST',
         credentials: 'same-origin',
       });
-      setCaptureMsg(res.ok ? 'Cost history updated.' : 'Snapshot failed.');
+      setCaptureMsg(res.ok ? '成本历史已更新。' : '快照失败。');
     } catch {
-      setCaptureMsg('Snapshot failed.');
+      setCaptureMsg('快照失败。');
     } finally {
       setCapturing(false);
       setTimeout(() => setCaptureMsg(null), 4000);
@@ -61,36 +61,36 @@ export function Settings() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Settings</h2>
+        <h2 className="text-2xl font-bold">设置</h2>
         <p className="text-sm text-slate-400">
-          Account, plan, and data — configured on the server via Worker secrets.
+          账号、套餐与数据——均在服务端通过 Worker 环境变量与密钥配置。
         </p>
       </div>
 
       <div className="card">
         <div className="mb-4 flex items-center gap-2 text-lg font-semibold">
           <Cloud className="h-5 w-5 text-indigo-400" />
-          Cloudflare Account
+          Cloudflare 账号
           {conn?.connected && (
             <span className="ml-auto inline-flex items-center gap-1 text-xs font-normal text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Connected via OAuth
+              <CheckCircle2 className="h-3.5 w-3.5" /> 已通过 OAuth 连接
             </span>
           )}
         </div>
-        <Row label="Account name" value={account?.name || '—'} />
+        <Row label="账号名称" value={account?.name || '—'} />
         <Row
-          label="Account ID"
+          label="账号 ID"
           value={<span className="font-mono text-xs">{account?.accountId || '—'}</span>}
         />
         <Row
-          label="API token"
+          label="API 令牌"
           value={
             account?.tokenConfigured ? (
               <span className="flex items-center gap-1 text-emerald-400">
-                <Key className="h-3.5 w-3.5" /> Configured
+                <Key className="h-3.5 w-3.5" /> 已配置
               </span>
             ) : (
-              <span className="text-amber-400">Not configured</span>
+              <span className="text-amber-400">未配置</span>
             )
           }
         />
@@ -101,10 +101,9 @@ export function Settings() {
           entirely rather than show a misleading "no paid plans". */}
       {account?.plan?.accessible && (
         <div className="card">
-          <div className="mb-1 text-lg font-semibold">Detected Plan</div>
+          <div className="mb-1 text-lg font-semibold">检测到的套餐</div>
           <p className="mb-3 text-xs text-slate-500">
-            Auto-detected from your Cloudflare subscriptions. Cost estimates use the included
-            allowances of these plans.
+            自动检测自你的 Cloudflare 订阅。成本估算会使用这些套餐的包含额度。
           </p>
           {account.plan.plans.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -119,19 +118,17 @@ export function Settings() {
             </div>
           ) : (
             <p className="text-sm text-slate-400">
-              No paid subscriptions detected — usage is bounded by free-tier hard limits.
+              未检测到付费订阅——用量受免费额度的硬性上限约束。
             </p>
           )}
         </div>
       )}
 
       <div className="card">
-        <div className="mb-1 text-lg font-semibold">Cost History</div>
+        <div className="mb-1 text-lg font-semibold">成本历史</div>
         <p className="mb-3 text-xs text-slate-500">
-          The <span className="text-slate-300">Monthly Cost Trend</span> chart is built from daily
-          snapshots, which also preserve history beyond Cloudflare&apos;s ~90 day analytics window.
-          Snapshots run automatically every day — use this to fill the chart immediately instead of
-          waiting for the next daily run.
+          <span className="text-slate-300">月度成本趋势</span> 图表由每日快照构成，同时把历史保留到
+          Cloudflare 约 90 天分析窗口之外。快照每天自动运行——点这里可以立即补齐，不用等下一次定时任务。
         </p>
         <button
           onClick={captureSnapshot}
@@ -139,7 +136,7 @@ export function Settings() {
           className="btn-primary gap-2 disabled:opacity-60"
         >
           <Camera className="h-4 w-4" />
-          {capturing ? 'Backfilling…' : 'Backfill cost history now'}
+          {capturing ? '补齐中…' : '立即补齐成本历史'}
         </button>
         {captureMsg && (
           <span className="ml-3 inline-flex items-center gap-1 text-sm text-emerald-400">

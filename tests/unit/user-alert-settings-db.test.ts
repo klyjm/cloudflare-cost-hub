@@ -13,15 +13,52 @@ beforeEach(() => {
 afterEach(() => t.close());
 
 describe('user_alert_settings', () => {
-  it('round-trips recipient + enabled, defaulting to the free plan', async () => {
-    await upsertUserAlertSetting(t.db, 'u1', { email: 'a@x.com', enabled: true });
+  it('round-trips recipient + enabled + threshold/channels, defaulting to the free plan', async () => {
+    await upsertUserAlertSetting(t.db, 'u1', {
+      email: 'a@x.com',
+      enabled: true,
+      warnThreshold: 90,
+      channels: { email: true, telegram: true, wecomBot: false, wecomApp: false },
+    });
     const s = await getUserAlertSetting(t.db, 'u1');
-    expect(s).toMatchObject({ userId: 'u1', email: 'a@x.com', enabled: true, plan: 'free', paidUntil: null });
+    expect(s).toMatchObject({
+      userId: 'u1',
+      email: 'a@x.com',
+      enabled: true,
+      plan: 'free',
+      paidUntil: null,
+      warnThreshold: 90,
+      channelEmail: true,
+      channelTelegram: true,
+      channelWecomBot: false,
+      channelWecomApp: false,
+    });
+  });
+
+  it('falls back to the default threshold for legacy rows', async () => {
+    await upsertUserAlertSetting(t.db, 'u1', {
+      email: 'a@x.com',
+      enabled: true,
+      warnThreshold: 80,
+      channels: { email: true, telegram: false, wecomBot: false, wecomApp: false },
+    });
+    const s = await getUserAlertSetting(t.db, 'u1');
+    expect(s?.warnThreshold).toBe(80);
   });
 
   it('lists only enabled users', async () => {
-    await upsertUserAlertSetting(t.db, 'u1', { email: 'a@x.com', enabled: true });
-    await upsertUserAlertSetting(t.db, 'u2', { email: 'b@x.com', enabled: false });
+    await upsertUserAlertSetting(t.db, 'u1', {
+      email: 'a@x.com',
+      enabled: true,
+      warnThreshold: 80,
+      channels: { email: true, telegram: false, wecomBot: false, wecomApp: false },
+    });
+    await upsertUserAlertSetting(t.db, 'u2', {
+      email: 'b@x.com',
+      enabled: false,
+      warnThreshold: 80,
+      channels: { email: true, telegram: false, wecomBot: false, wecomApp: false },
+    });
     const enabled = await listEnabledAlertSettings(t.db);
     expect(enabled.map((s) => s.userId)).toEqual(['u1']);
   });

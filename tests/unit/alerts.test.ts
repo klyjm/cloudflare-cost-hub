@@ -12,6 +12,11 @@ const baseSetting: UserAlertSetting = {
   lastSentDate: null,
   plan: 'free',
   paidUntil: null,
+  warnThreshold: 80,
+  channelEmail: true,
+  channelTelegram: false,
+  channelWecomBot: false,
+  channelWecomApp: false,
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -38,9 +43,15 @@ describe('isEntitled', () => {
 });
 
 describe('runDailyAlertForUser early exits', () => {
-  it('skips when Resend is not configured', async () => {
-    const r = await runDailyAlertForUser({} as Env, baseSetting);
-    expect(r).toEqual({ sent: false, reason: 'Alerts not configured' });
+  it('skips when every channel is disabled', async () => {
+    const r = await runDailyAlertForUser(baseEnv, {
+      ...baseSetting,
+      channelEmail: false,
+      channelTelegram: false,
+      channelWecomBot: false,
+      channelWecomApp: false,
+    });
+    expect(r).toEqual({ sent: false, reason: 'No channel enabled' });
   });
 
   it('skips when the user disabled alerts', async () => {

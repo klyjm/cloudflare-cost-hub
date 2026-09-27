@@ -28,9 +28,9 @@ export function CostChart({ data }: CostChartProps) {
   if (chartData.length === 0) {
     return (
       <div className="card flex h-80 flex-col">
-        <h3 className="mb-4 text-sm font-semibold text-slate-200">Daily Requests</h3>
+        <h3 className="mb-4 text-sm font-semibold text-slate-200">每日请求量</h3>
         <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
-          No Workers requests recorded for this period.
+          该时段没有 Workers 请求记录。
         </div>
       </div>
     );
@@ -39,11 +39,11 @@ export function CostChart({ data }: CostChartProps) {
   return (
     <div className="card h-80">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-200">Daily Requests</h3>
+        <h3 className="text-sm font-semibold text-slate-200">每日请求量</h3>
         {spikeCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-amber-400">
             <AlertTriangle className="h-3.5 w-3.5" />
-            {spikeCount} spike day{spikeCount === 1 ? '' : 's'}
+            {spikeCount} 个异常尖峰日
           </span>
         )}
       </div>

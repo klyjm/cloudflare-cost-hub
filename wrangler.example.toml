@@ -49,15 +49,6 @@ id = "your-kv-namespace-id"
 [site]
 bucket = "./dist/client"
 
-# Durable Objects for alert deduplication.
-[[durable_objects.bindings]]
-name = "ALERT_DO"
-class_name = "AlertDurableObject"
-
-[[migrations]]
-tag = "v1"
-new_classes = ["AlertDurableObject"]
-
 # Daily snapshot of usage/cost so history survives Cloudflare's ~90 day retention.
 [triggers]
 crons = ["0 1 * * *"]

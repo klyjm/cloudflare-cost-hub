@@ -16,6 +16,19 @@ export interface Env {
   RESEND_API_KEY?: string;
   ALERT_EMAIL_FROM?: string;
   ALERT_EMAIL_TO?: string;
+  // Telegram channel: bot token (secret) + chat id (non-sensitive).
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
+  // 企业微信群机器人：webhook key（secret，不含 URL 主体）。
+  WECOM_WEBHOOK_KEY?: string;
+  // 企业微信自建应用：corpid + secret（secret）+ agentid；touser 缺省 @all。
+  WECOM_CORP_ID?: string;
+  WECOM_CORP_SECRET?: string;
+  WECOM_AGENTID?: string;
+  WECOM_TO_USER?: string;
+  // Comma-separated allowlist of Cloudflare user ids / login emails that may
+  // sign in. Unset or empty keeps upstream behavior (open registration).
+  ALLOWED_CF_USERS?: string;
   // Monetization flag. While unset/"false", every enabled user receives alerts
   // (no payment enforced yet). Set to "true" to gate automated alerts behind a
   // paid plan (user_alert_settings.plan / paid_until).

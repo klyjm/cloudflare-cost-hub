@@ -39,8 +39,9 @@ settings.get('/account', async (c) => {
   });
 });
 
-// Per-user alert preferences: recipient(s), the enable toggle, and the billing
-// entitlement state (plan, whether a paid plan is currently required/active).
+// Per-user alert preferences: recipient(s), the enable toggle, warning
+// threshold, delivery channels, and the billing entitlement state (plan,
+// whether a paid plan is currently required/active).
 settings.get('/alerts', async (c) => {
   const session = c.get('session' as never) as { userId: string };
   const s = await getUserAlertSetting(c.env.DB, session.userId);
@@ -55,6 +56,20 @@ settings.get('/alerts', async (c) => {
   return c.json({
     email: s?.email ?? '',
     enabled: s?.enabled ?? true,
+    warnThreshold: s?.warnThreshold ?? 80,
+    channels: {
+      email: s?.channelEmail ?? true,
+      telegram: s?.channelTelegram ?? false,
+      wecomBot: s?.channelWecomBot ?? false,
+      wecomApp: s?.channelWecomApp ?? false,
+    },
+    // Which channels have their env credentials configured (UI hints).
+    available: {
+      email: Boolean(c.env.RESEND_API_KEY),
+      telegram: Boolean(c.env.TELEGRAM_BOT_TOKEN && c.env.TELEGRAM_CHAT_ID),
+      wecomBot: Boolean(c.env.WECOM_WEBHOOK_KEY),
+      wecomApp: Boolean(c.env.WECOM_CORP_ID && c.env.WECOM_CORP_SECRET && c.env.WECOM_AGENTID),
+    },
     plan: ent.plan,
     paidUntil: ent.paidUntil,
     requiresPayment,
@@ -62,22 +77,44 @@ settings.get('/alerts', async (c) => {
   });
 });
 
+const channelsSchema = z.object({
+  email: z.boolean(),
+  telegram: z.boolean(),
+  wecomBot: z.boolean(),
+  wecomApp: z.boolean(),
+});
+
 settings.post(
   '/alerts',
-  zValidator('json', z.object({ email: z.string(), enabled: z.boolean() })),
+  zValidator(
+    'json',
+    z.object({
+      email: z.string(),
+      enabled: z.boolean(),
+      warnThreshold: z.number().int().min(1).max(100).default(80),
+      channels: channelsSchema.default({
+        email: true,
+        telegram: false,
+        wecomBot: false,
+        wecomApp: false,
+      }),
+    })
+  ),
   async (c) => {
     const session = c.get('session' as never) as { userId: string };
-    const { email, enabled } = c.req.valid('json');
+    const { email, enabled, warnThreshold, channels } = c.req.valid('json');
     // Allow comma-separated addresses; validate each one looks like an email.
     const list = email.split(',').map((e) => e.trim()).filter(Boolean);
-    if (list.some((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))) {
+    if (channels.email && list.some((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))) {
       return c.json({ error: 'Invalid email address' }, 400);
     }
     await upsertUserAlertSetting(c.env.DB, session.userId, {
       email: list.join(',') || null,
       enabled,
+      warnThreshold,
+      channels,
     });
-    return c.json({ ok: true, email: list.join(','), enabled });
+    return c.json({ ok: true, email: list.join(','), enabled, warnThreshold, channels });
   }
 );
 

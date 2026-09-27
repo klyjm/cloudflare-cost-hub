@@ -15,10 +15,10 @@ function parseErrorDetail(message: string): string {
     const parsed = JSON.parse(message) as { detail?: string; error?: string };
     const detail = parsed.detail || parsed.error;
     if (detail && /\b429\b|\b10429\b|rate.?limit/i.test(detail)) {
-      return 'Cloudflare’s analytics API is rate-limiting requests right now. Please wait a moment and retry.';
+      return 'Cloudflare 分析 API 正在限流，请稍候重试。';
     }
     if (detail && /older than|retention|cannot request data older/i.test(detail)) {
-      return 'This month is outside the ~90 day window Cloudflare Analytics keeps. Pick a more recent month.';
+      return '该月份超出了 Cloudflare 分析约 90 天的保留窗口，请选择更近的月份。';
     }
     return detail || message;
   } catch {
@@ -26,14 +26,14 @@ function parseErrorDetail(message: string): string {
   }
 }
 
-// Build a list of the last `count` months as { value: 'YYYY-MM', label: 'June 2026' }.
+// Build a list of the last `count` months as { value: 'YYYY-MM', label: '2026年9月' }.
 function recentMonths(count: number): Array<{ value: string; label: string }> {
   const out: Array<{ value: string; label: string }> = [];
   const now = new Date();
   for (let i = 0; i < count; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const label = `${d.getFullYear()}年${d.getMonth() + 1}月`;
     out.push({ value, label });
   }
   return out;
@@ -77,11 +77,13 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Dashboard</h2>
-          <p className="text-sm text-slate-400">Overview of your Cloudflare usage and costs.</p>
+          <h2 className="text-2xl font-bold">仪表盘</h2>
+          <p className="text-sm text-slate-400">
+            你的 Cloudflare 用量与成本总览。数据来自分析 API（约 60 秒聚合延迟，仅供预警参考）。
+          </p>
           {data?.plan && data.plan.plans.length > 0 && (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-slate-500">Detected plan:</span>
+              <span className="text-xs text-slate-500">检测到套餐：</span>
               {data.plan.plans.map((p) => (
                 <span
                   key={p}
@@ -117,13 +119,13 @@ export function Dashboard() {
         <div className="card flex flex-col items-start gap-3">
           <div className="flex items-center gap-3 text-red-400">
             <AlertTriangle className="h-5 w-5 shrink-0" />
-            <span>{error || 'Failed to load dashboard data'}</span>
+            <span>{error || '加载仪表盘数据失败'}</span>
           </div>
           <button
             onClick={loadDashboard}
             className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
           >
-            Retry
+            重试
           </button>
         </div>
       ) : (
@@ -141,22 +143,22 @@ export function Dashboard() {
 
           <div>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-lg font-semibold">Free Tier Status</h3>
+              <h3 className="text-lg font-semibold">免费额度状态</h3>
               <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Within free tier
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> 免费额度内
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Over free, within paid (no cost)
+                  <span className="h-2 w-2 rounded-full bg-amber-500" /> 超免费额度（套餐内，不计费）
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-red-500" /> Billable
+                  <span className="h-2 w-2 rounded-full bg-red-500" /> 将产生计费
                 </span>
               </div>
             </div>
             {data.freeTierStatus.length === 0 ? (
               <div className="card text-sm text-slate-400">
-                No usage data available for this period.
+                该时段暂无用量数据。
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -190,12 +192,12 @@ function SummaryCard({ summary, periodLabel }: { summary: BillingSummary; period
       <div className="text-2xl font-bold text-slate-100">
         {summary.currency} {summary.currentMonthCost.toFixed(2)}
       </div>
-      <div className="text-[11px] text-slate-500">Estimated usage-based cost</div>
+      <div className="text-[11px] text-slate-500">预估用量成本</div>
       <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
-        <span>Previous: {summary.currency} {summary.previousMonthCost.toFixed(2)}</span>
+        <span>上月：{summary.currency} {summary.previousMonthCost.toFixed(2)}</span>
         <span className="flex items-center gap-1 text-indigo-400">
           <TrendingUp className="h-3 w-3" />
-          Forecast: {summary.currency} {summary.forecastedCost.toFixed(2)}
+          月底预测：{summary.currency} {summary.forecastedCost.toFixed(2)}
         </span>
       </div>
       <div className="mt-2 text-xs text-slate-600">{summary.accountName}</div>

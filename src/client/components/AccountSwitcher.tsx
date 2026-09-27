@@ -64,7 +64,7 @@ export function AccountSwitcher() {
     return (
       <div className="flex items-center gap-2 px-1 text-sm text-slate-300">
         <Cloud className="h-4 w-4 shrink-0 text-indigo-400" />
-        <span className="truncate">{active?.name || accounts[0]?.name || 'Account'}</span>
+        <span className="truncate">{active?.name || accounts[0]?.name || '账号'}</span>
       </div>
     );
   }
@@ -78,13 +78,13 @@ export function AccountSwitcher() {
         className="flex w-full items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-left text-sm text-slate-200 hover:border-slate-600 disabled:opacity-60"
       >
         <Cloud className="h-4 w-4 shrink-0 text-indigo-400" />
-        <span className="min-w-0 flex-1 truncate">{active?.name || 'Select account'}</span>
+        <span className="min-w-0 flex-1 truncate">{active?.name || '选择账号'}</span>
         <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-500" />
       </button>
       {open && (
         <div className="absolute bottom-full left-0 z-20 mb-1 max-h-72 w-full overflow-auto rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-xl">
           <div className="px-3 py-1 text-[11px] uppercase tracking-wide text-slate-500">
-            Cloudflare account
+            Cloudflare 账号
           </div>
           {accounts.map((a) => (
             <button

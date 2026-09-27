@@ -10,7 +10,6 @@ import cfOauth from '../../src/server/routes/cf-oauth';
 import dashboard from '../../src/server/routes/dashboard';
 import settings from '../../src/server/routes/settings';
 import budgetsRoute from '../../src/server/routes/budgets';
-import reportsRoute from '../../src/server/routes/reports';
 
 // End-to-end through the real Hono app: requests flow through routing,
 // the auth middleware, the handlers, and a real-SQLite D1. Mirrors index.ts's
@@ -22,7 +21,6 @@ function buildApp() {
   app.route('/api/dashboard', dashboard);
   app.route('/api/settings', settings);
   app.route('/api/budgets', budgetsRoute);
-  app.route('/api/reports', reportsRoute);
   app.get('/health', (c) => c.json({ ok: true, version: '0.1.0' }));
   return app;
 }

@@ -33,17 +33,17 @@ export function BudgetView() {
   const save = async () => {
     const limit = Number(input);
     if (!Number.isFinite(limit) || limit <= 0) {
-      setMsg('Enter a positive amount.');
+      setMsg('请输入正数金额。');
       return;
     }
     setSaving(true);
     setMsg(null);
     try {
       await api.setBudget(limit);
-      setMsg('Budget saved.');
+      setMsg('预算已保存。');
       load();
     } catch {
-      setMsg('Failed to save.');
+      setMsg('保存失败。');
     } finally {
       setSaving(false);
       setTimeout(() => setMsg(null), 4000);
@@ -68,27 +68,26 @@ export function BudgetView() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Budgets</h2>
+        <h2 className="text-2xl font-bold">预算</h2>
         <p className="text-sm text-slate-400">
-          Set a monthly spend budget for {data?.accountName || 'this account'}. The daily alert
-          warns you when the month-end forecast nears or exceeds it.
+          为 {data?.accountName || '这个账号'} 设定每月花费上限。当月底预测接近或超出上限时，每日告警会提醒你。
         </p>
       </div>
 
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-sm text-slate-500">Loading…</div>
+        <div className="flex h-40 items-center justify-center text-sm text-slate-500">加载中…</div>
       ) : !data ? (
         <div className="card text-sm text-amber-400">
-          Connect a Cloudflare account to set a budget.
+          请先连接 Cloudflare 账号再设置预算。
         </div>
       ) : (
         <>
           <div className="card">
             <div className="mb-3 flex items-center gap-2 text-lg font-semibold">
               <Wallet className="h-5 w-5 text-indigo-400" />
-              Monthly budget
+              每月预算
             </div>
-            <label className="mb-1 block text-sm font-medium text-slate-300">Limit (USD / month)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-300">上限（美元 / 月）</label>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1">
                 <span className="text-slate-400">$</span>
@@ -103,7 +102,7 @@ export function BudgetView() {
                 />
               </div>
               <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-60">
-                {saving ? 'Saving…' : 'Save budget'}
+                {saving ? '保存中…' : '保存预算'}
               </button>
               {data.monthlyLimit != null && (
                 <button
@@ -111,7 +110,7 @@ export function BudgetView() {
                   disabled={saving}
                   className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-60"
                 >
-                  Clear
+                  清除
                 </button>
               )}
               {msg && <span className="text-xs text-slate-400">{msg}</span>}
@@ -126,14 +125,14 @@ export function BudgetView() {
                 ) : (
                   <CheckCircle2 className="h-5 w-5" style={{ color }} />
                 )}
-                Forecast vs budget
+                预测 vs 预算
               </div>
               <div className="mb-2 flex items-end justify-between text-sm">
                 <span className="text-slate-400">
-                  Month-end forecast: <span className="font-semibold text-slate-100">${status.forecast.toFixed(2)}</span>
+                  月底预测：<span className="font-semibold text-slate-100">${status.forecast.toFixed(2)}</span>
                 </span>
                 <span className="text-slate-400">
-                  Budget: <span className="font-semibold text-slate-100">${status.limit.toFixed(2)}</span>
+                  预算：<span className="font-semibold text-slate-100">${status.limit.toFixed(2)}</span>
                 </span>
               </div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800">
@@ -141,10 +140,10 @@ export function BudgetView() {
               </div>
               <p className="mt-2 text-sm" style={{ color }}>
                 {status.exceeded
-                  ? `Over budget — forecast is ${status.percentage}% of the limit.`
+                  ? `超出预算——预测已达上限的 ${status.percentage}%。`
                   : status.nearing
-                    ? `Nearing budget — ${status.percentage}% of the limit.`
-                    : `Within budget — ${status.percentage}% of the limit.`}
+                    ? `接近预算——已达上限的 ${status.percentage}%。`
+                    : `预算之内——已用上限的 ${status.percentage}%。`}
               </p>
             </div>
           )}

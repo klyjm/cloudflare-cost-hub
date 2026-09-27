@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Cloud, Layers, Wallet, Mail, FileText, Heart } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Cloud, Layers, Wallet, Mail, Heart } from 'lucide-react';
 import { AccountSwitcher } from './AccountSwitcher';
 
 // This project is open source and free to self-host. The hosted instance is
@@ -24,12 +24,11 @@ export function Layout({ onLogout }: LayoutProps) {
   const location = useLocation();
 
   const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/services', icon: Layers, label: 'Services' },
-    { to: '/budgets', icon: Wallet, label: 'Budgets' },
-    { to: '/alerts', icon: Mail, label: 'Alerts' },
-    { to: '/reports', icon: FileText, label: 'Reports' },
-    { to: '/settings', icon: Settings, label: 'Settings' },
+    { to: '/', icon: LayoutDashboard, label: '仪表盘' },
+    { to: '/services', icon: Layers, label: '服务用量' },
+    { to: '/budgets', icon: Wallet, label: '预算' },
+    { to: '/alerts', icon: Mail, label: '告警' },
+    { to: '/settings', icon: Settings, label: '设置' },
   ];
 
   return (
@@ -68,7 +67,7 @@ export function Layout({ onLogout }: LayoutProps) {
               className="flex w-full items-center justify-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-pink-300/80 hover:bg-slate-800 hover:text-pink-300"
             >
               <Heart className="h-3.5 w-3.5" />
-              Support this project
+              支持这个项目
             </a>
           )}
           <button
@@ -76,7 +75,7 @@ export function Layout({ onLogout }: LayoutProps) {
             className="flex w-full items-center justify-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-100"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Sign out
+            退出登录
           </button>
         </div>
       </aside>

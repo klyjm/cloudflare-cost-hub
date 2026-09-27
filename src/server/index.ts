@@ -7,14 +7,10 @@ import cfOauth from './routes/cf-oauth';
 import dashboard from './routes/dashboard';
 import settings from './routes/settings';
 import budgetsRoute from './routes/budgets';
-import reportsRoute from './routes/reports';
-import { AlertDurableObject } from './durable-objects/alert';
 import { accountFromEnv, captureRetainedMonths } from './snapshots';
 import { accountInputForConnected, listConnectedAccounts } from './cf-oauth';
 import { runDailyAlerts } from './alerts';
 import manifestJSON from '__STATIC_CONTENT_MANIFEST';
-
-export { AlertDurableObject };
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -23,7 +19,6 @@ app.route('/api/auth/cf', cfOauth);
 app.route('/api/dashboard', dashboard);
 app.route('/api/settings', settings);
 app.route('/api/budgets', budgetsRoute);
-app.route('/api/reports', reportsRoute);
 
 app.get('/health', (c) => c.json({ ok: true, version: '0.1.0' }));
 

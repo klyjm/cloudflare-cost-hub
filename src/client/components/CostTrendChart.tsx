@@ -13,7 +13,7 @@ import { type TrendPoint } from '../api';
 
 function monthLabel(month: string): string {
   const [y, m] = month.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'short', year: '2-digit' });
+  return `${y}年${m}月`;
 }
 
 // `trend === null` means the parent is still loading it. The parent fetches the
@@ -29,17 +29,16 @@ export function CostTrendChart({ trend }: { trend: TrendPoint[] | null }) {
     <div className="card h-72">
       <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-200">
         <TrendingUp className="h-4 w-4 text-indigo-400" />
-        Monthly Cost Trend
+        月度成本趋势
       </h3>
       <p className="mb-3 text-xs text-slate-500">
-        Estimated monthly cost. History is snapshotted daily so it outlives Cloudflare&apos;s ~90 day
-        retention.
+        预估月度成本。历史来自每日快照，可突破 Cloudflare 约 90 天的分析保留期。
       </p>
       {loading ? (
-        <div className="flex h-40 items-center justify-center text-sm text-slate-500">Loading…</div>
+        <div className="flex h-40 items-center justify-center text-sm text-slate-500">加载中…</div>
       ) : data.length === 0 ? (
         <div className="flex h-40 items-center justify-center text-sm text-slate-500">
-          No cost history yet — snapshots accumulate daily.
+          暂无成本历史——快照每天累积一条。
         </div>
       ) : (
         <ResponsiveContainer width="100%" height="80%">
@@ -52,14 +51,14 @@ export function CostTrendChart({ trend }: { trend: TrendPoint[] | null }) {
               itemStyle={{ color: '#e2e8f0' }}
               formatter={(v: number) => `$${v.toFixed(2)}`}
             />
-            <Bar dataKey="cost" fill="#6366f1" radius={[3, 3, 0, 0]} name="Cost" />
+            <Bar dataKey="cost" fill="#6366f1" radius={[3, 3, 0, 0]} name="成本" />
             <Line
               type="monotone"
               dataKey="forecast"
               stroke="#f59e0b"
               strokeDasharray="4 4"
               dot={false}
-              name="Forecast"
+              name="预测"
             />
           </ComposedChart>
         </ResponsiveContainer>

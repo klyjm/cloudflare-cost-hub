@@ -191,6 +191,11 @@ dashboard.post('/alert-test', async (c) => {
       lastSentDate: null,
       plan: 'free' as const,
       paidUntil: null,
+      warnThreshold: 80,
+      channelEmail: true,
+      channelTelegram: false,
+      channelWecomBot: false,
+      channelWecomApp: false,
     };
     const result = await runDailyAlertForUser(c.env, setting, true);
     return c.json(result);

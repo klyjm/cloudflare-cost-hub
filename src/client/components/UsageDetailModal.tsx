@@ -38,7 +38,7 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
     api
       .getBreakdown(status.product, status.metric, month)
       .then(setBreakdown)
-      .catch(() => setBreakdownError('Per-instance breakdown is not available for this metric.'))
+      .catch(() => setBreakdownError('该指标暂无分实例用量明细。'))
       .finally(() => setBreakdownLoading(false));
   }, [status.product, status.metric, month]);
   const isDaily = status.period === 'day';
@@ -88,7 +88,7 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
                     : 'text-emerald-400'
                 }
               >
-                ({status.percentage.toFixed(1)}% of free)
+                ({status.percentage.toFixed(1)}% 免费额度)
               </span>
             </p>
           </div>
@@ -113,14 +113,14 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
           )}
           {tier === 'billable' ? (
             <span>
-              Over the paid-plan allowance — estimated cost ${cost.toFixed(2)} this month.
+              已超出付费套餐额度——本月预估成本 ${cost.toFixed(2)}。
             </span>
           ) : tier === 'paid' ? (
             <span>
-              Over the free tier{isDaily && overDays.length > 0 ? ` on ${overDays.length} day${overDays.length === 1 ? '' : 's'}` : ''}, but within the paid-plan allowance — no cost.
+              已超出免费额度{isDaily && overDays.length > 0 ? `（${overDays.length} 天）` : ''}，但仍在付费套餐额度内——不计费。
             </span>
           ) : (
-            <span>Within the free-tier limit for this period.</span>
+            <span>本时段用量在免费额度之内。</span>
           )}
         </div>
 
@@ -140,7 +140,7 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
                   y={referenceValue}
                   stroke="#f87171"
                   strokeDasharray="4 4"
-                  label={{ value: 'limit', fill: '#f87171', fontSize: 11, position: 'right' }}
+                  label={{ value: '上限', fill: '#f87171', fontSize: 11, position: 'right' }}
                 />
               )}
               <Bar dataKey="value" radius={[2, 2, 0, 0]}>
@@ -155,26 +155,26 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
         {/* Free tier vs paid plan comparison */}
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-            <div className="text-xs text-slate-500">Free plan limit</div>
+            <div className="text-xs text-slate-500">免费额度</div>
             <div className="mt-1 text-sm font-semibold text-slate-200">
               {status.limit.toLocaleString()} {status.unit}
             </div>
           </div>
           <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-            <div className="text-xs text-slate-500">Paid plan includes</div>
+            <div className="text-xs text-slate-500">付费套餐包含</div>
             <div className="mt-1 text-sm font-semibold text-slate-200">
               {status.paidIncluded !== undefined
-                ? `${status.paidIncluded.toLocaleString()} / month`
-                : 'Included in plan'}
+                ? `${status.paidIncluded.toLocaleString()} / 月`
+                : '包含在套餐内'}
             </div>
             {status.paidPricePerUnit !== undefined && (
               <div className="mt-0.5 text-xs text-slate-500">
-                then {formatUSD(status.paidPricePerUnit)} / {status.paidUnitLabel}
+                超出后 {formatUSD(status.paidPricePerUnit)} / {status.paidUnitLabel}
               </div>
             )}
           </div>
           <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-            <div className="text-xs text-slate-500">This month</div>
+            <div className="text-xs text-slate-500">本月用量</div>
             <div className="mt-1 text-sm font-semibold text-slate-200">
               {status.monthlyUsed !== undefined ? status.monthlyUsed.toLocaleString() : '—'}
             </div>
@@ -183,7 +183,7 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
                 (status.estimatedCost ?? 0) > 0 ? 'text-amber-400' : 'text-emerald-400'
               }`}
             >
-              est. {formatUSD(status.estimatedCost ?? 0)}
+              预估 {formatUSD(status.estimatedCost ?? 0)}
             </div>
           </div>
         </div>
@@ -192,22 +192,22 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
         <div className="mt-5">
           <h4 className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300">
             <Server className="h-4 w-4" />
-            Usage by {breakdown?.instanceLabel ?? 'instance'}
+            按{breakdown?.instanceLabel ?? '实例'}的用量分布
           </h4>
           {breakdownLoading ? (
-            <div className="py-6 text-center text-sm text-slate-500">Loading…</div>
+            <div className="py-6 text-center text-sm text-slate-500">加载中…</div>
           ) : breakdownError || !breakdown ? (
-            <div className="text-sm text-slate-500">{breakdownError || 'Not available.'}</div>
+            <div className="text-sm text-slate-500">{breakdownError || '暂无数据。'}</div>
           ) : breakdown.instances.length === 0 ? (
-            <div className="text-sm text-slate-500">No instance-level usage in this period.</div>
+            <div className="text-sm text-slate-500">该时段没有实例级用量。</div>
           ) : (
             <div className="overflow-hidden rounded-lg border border-slate-800">
               <table className="w-full text-sm">
                 <thead className="bg-slate-900/60 text-left text-xs text-slate-400">
                   <tr>
                     <th className="px-3 py-2">{capitalize(breakdown.instanceLabel)}</th>
-                    <th className="px-3 py-2 text-right">Usage</th>
-                    <th className="px-3 py-2 text-right">Share</th>
+                    <th className="px-3 py-2 text-right">用量</th>
+                    <th className="px-3 py-2 text-right">占比</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -230,7 +230,7 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
               </table>
               {breakdown.instances.length > 15 && (
                 <div className="bg-slate-900/40 px-3 py-1.5 text-xs text-slate-500">
-                  +{breakdown.instances.length - 15} more
+                  还有 {breakdown.instances.length - 15} 个实例
                 </div>
               )}
             </div>
@@ -239,14 +239,14 @@ export function UsageDetailModal({ status, month, onClose }: UsageDetailModalPro
 
         {isDaily && overDays.length > 0 && (
           <div className="mt-4">
-            <h4 className="mb-2 text-sm font-medium text-slate-300">Days over limit</h4>
+            <h4 className="mb-2 text-sm font-medium text-slate-300">超限日期</h4>
             <div className="overflow-hidden rounded-lg border border-slate-800">
               <table className="w-full text-sm">
                 <thead className="bg-slate-900/60 text-left text-xs text-slate-400">
                   <tr>
-                    <th className="px-3 py-2">Date</th>
-                    <th className="px-3 py-2 text-right">Usage</th>
-                    <th className="px-3 py-2 text-right">Over by</th>
+                    <th className="px-3 py-2">日期</th>
+                    <th className="px-3 py-2 text-right">用量</th>
+                    <th className="px-3 py-2 text-right">超出</th>
                   </tr>
                 </thead>
                 <tbody>

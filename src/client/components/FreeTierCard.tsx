@@ -19,9 +19,9 @@ function classify(status: FreeTierStatus): Tier {
 }
 
 const TIER_STYLES: Record<Tier, { bar: string; badgeBg: string; badgeText: string; label: string }> = {
-  free: { bar: 'bg-emerald-500', badgeBg: 'bg-emerald-500/10', badgeText: 'text-emerald-400', label: 'Free tier' },
-  paid: { bar: 'bg-amber-500', badgeBg: 'bg-amber-500/10', badgeText: 'text-amber-400', label: 'Within paid plan' },
-  billable: { bar: 'bg-red-500', badgeBg: 'bg-red-500/10', badgeText: 'text-red-400', label: 'Billable' },
+  free: { bar: 'bg-emerald-500', badgeBg: 'bg-emerald-500/10', badgeText: 'text-emerald-400', label: '免费额度内' },
+  paid: { bar: 'bg-amber-500', badgeBg: 'bg-amber-500/10', badgeText: 'text-amber-400', label: '套餐内' },
+  billable: { bar: 'bg-red-500', badgeBg: 'bg-red-500/10', badgeText: 'text-red-400', label: '将计费' },
 };
 
 function compact(n: number): string {
@@ -73,7 +73,7 @@ export function FreeTierCard({ status, onClick }: FreeTierCardProps) {
           {status.used.toLocaleString()} / {status.limit.toLocaleString()}
         </span>
         <span>
-          {status.percentage.toFixed(1)}% of free · {status.unit}
+          {status.percentage.toFixed(1)}% · {status.unit}
         </span>
       </div>
 
@@ -88,10 +88,10 @@ export function FreeTierCard({ status, onClick }: FreeTierCardProps) {
           </div>
           <div className="flex justify-between text-[11px] text-slate-500">
             <span>
-              Paid plan: {compact(status.monthlyUsed ?? 0)} / {compact(status.paidIncluded)} mo
+              付费套餐：{compact(status.monthlyUsed ?? 0)} / {compact(status.paidIncluded)} 每月
             </span>
             <span className={cost > 0 ? 'text-red-400' : 'text-emerald-400'}>
-              est ${cost.toFixed(2)}
+              预估 ${cost.toFixed(2)}
             </span>
           </div>
         </div>

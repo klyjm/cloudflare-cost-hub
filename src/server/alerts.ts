@@ -13,11 +13,13 @@ import {
 import { getBudget } from './db/budgets';
 import { getAccountEntitlement } from './db/account-entitlements';
 import { evaluateBudget, type BudgetStatus } from './budgets';
+import { sendDigest, type AlertChannelFlags, type DigestPayload } from './channels';
 
 export const ALERT_EMAIL_KEY = 'alert_email';
 
-// Warn when a metric reaches this share of its free-tier allowance.
-const WARN_THRESHOLD = 80;
+// Default share of a metric's free-tier allowance that flags it; each user can
+// override this from the alerts page (user_alert_settings.warn_threshold).
+export const DEFAULT_WARN_THRESHOLD = 80;
 
 // Billing entitlement for automated alerts, evaluated against the monitored
 // Cloudflare account's plan (not the individual user) — teammates sharing an
@@ -39,6 +41,11 @@ const TIER_COLOR: Record<Tier, string> = {
   free: '#34d399',
   paid: '#fbbf24',
   billable: '#f87171',
+};
+const TIER_EMOJI: Record<Tier, string> = {
+  free: '🟢',
+  paid: '🟡',
+  billable: '🔴',
 };
 const TIER_RANK: Record<Tier, number> = { free: 0, paid: 1, billable: 2 };
 
@@ -62,8 +69,11 @@ function allMetrics(analysis: ServicesAnalysis): ServiceMetricSummary[] {
     .sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier] || b.percentage - a.percentage);
 }
 
-function noteworthy(metrics: ServiceMetricSummary[]): ServiceMetricSummary[] {
-  return metrics.filter((m) => (m.estimatedCost ?? 0) > 0 || m.percentage >= WARN_THRESHOLD);
+function noteworthy(
+  metrics: ServiceMetricSummary[],
+  threshold: number = DEFAULT_WARN_THRESHOLD
+): ServiceMetricSummary[] {
+  return metrics.filter((m) => (m.estimatedCost ?? 0) > 0 || m.percentage >= threshold);
 }
 
 function compact(n: number): string {
@@ -90,7 +100,7 @@ function metricsTable(metrics: ServiceMetricSummary[]): string {
     )
     .join('');
   return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-    <thead><tr><th style="${TH}">Metric</th><th style="${TH}text-align:right;">Usage</th><th style="${TH}text-align:right;">Status</th></tr></thead>
+    <thead><tr><th style="${TH}">指标</th><th style="${TH}text-align:right;">用量</th><th style="${TH}text-align:right;">状态</th></tr></thead>
     <tbody>${rows}</tbody></table>`;
 }
 
@@ -107,9 +117,9 @@ function driversTable(drivers: CostDriver[]): string {
       </tr>`
     )
     .join('');
-  return `<h3 style="margin:24px 0 8px;font-size:15px;">Top usage drivers</h3>
+  return `<h3 style="margin:24px 0 8px;font-size:15px;">用量 Top 来源</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr><th style="${TH}">Instance</th><th style="${TH}">Service</th><th style="${TH}text-align:right;">Usage</th><th style="${TH}text-align:right;">Paid share</th></tr></thead>
+      <thead><tr><th style="${TH}">实例</th><th style="${TH}">服务</th><th style="${TH}text-align:right;">用量</th><th style="${TH}text-align:right;">付费占比</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
 }
 
@@ -117,13 +127,13 @@ function budgetBanner(budget: BudgetStatus | null): string {
   if (!budget) return '';
   const color = budget.exceeded ? '#f87171' : budget.nearing ? '#fbbf24' : '#34d399';
   const label = budget.exceeded
-    ? 'Forecast is over budget'
+    ? '月底预测将超出预算'
     : budget.nearing
-      ? 'Forecast is nearing budget'
-      : 'Forecast is within budget';
+      ? '月底预测接近预算'
+      : '月底预测在预算之内';
   return `<div style="margin:0 0 16px;padding:10px 14px;border-radius:8px;background:${color}1a;border:1px solid ${color}40;">
     <span style="color:${color};font-weight:600;">${label}</span>
-    <span style="color:#cbd5e1;"> — forecast $${budget.forecast.toFixed(2)} of $${budget.limit.toFixed(2)} budget (${budget.percentage}%)</span>
+    <span style="color:#cbd5e1;"> — 预测 $${budget.forecast.toFixed(2)} / 预算 $${budget.limit.toFixed(2)}（${budget.percentage}%）</span>
   </div>`;
 }
 
@@ -137,55 +147,67 @@ function buildEmail(
   const billableCount = metrics.filter((m) => m.tier === 'billable').length;
 
   const subject = budget?.exceeded
-    ? `🚨 Over budget: $${analysis.forecastedCost.toFixed(2)} forecast vs $${budget.limit.toFixed(2)}`
+    ? `🚨 预算告警：月底预测 $${analysis.forecastedCost.toFixed(2)}，超出预算 $${budget.limit.toFixed(2)}`
     : billableCount
-      ? `⚠️ Cloudflare cost alert: $${analysis.currentMonthCost.toFixed(2)} this month`
-      : `Cloudflare usage report — ${flagged.length} metric${flagged.length === 1 ? '' : 's'} to watch`;
+      ? `⚠️ Cloudflare 用量告警：本月预估 $${analysis.currentMonthCost.toFixed(2)}`
+      : `Cloudflare 每日用量报告：${flagged.length} 项指标需要关注`;
 
   const html = `<div style="font-family:ui-sans-serif,system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px;border-radius:12px;max-width:680px;">
     <h2 style="margin:0 0 4px;">Cloudflare Cost Hub</h2>
-    <p style="margin:0 0 16px;color:#94a3b8;font-size:14px;">${analysis.accountName} — daily usage report (${analysis.month})</p>
+    <p style="margin:0 0 16px;color:#94a3b8;font-size:14px;">${analysis.accountName} — 每日用量报告（${analysis.month}）</p>
     ${budgetBanner(budget)}
     <div style="display:flex;gap:24px;margin-bottom:8px;">
-      <div><div style="font-size:12px;color:#94a3b8;">Est. month cost</div><div style="font-size:22px;font-weight:700;">$${analysis.currentMonthCost.toFixed(2)}</div></div>
-      <div><div style="font-size:12px;color:#94a3b8;">Forecast (month-end)</div><div style="font-size:22px;font-weight:700;color:#818cf8;">$${analysis.forecastedCost.toFixed(2)}</div></div>
+      <div><div style="font-size:12px;color:#94a3b8;">预估本月成本</div><div style="font-size:22px;font-weight:700;">$${analysis.currentMonthCost.toFixed(2)}</div></div>
+      <div><div style="font-size:12px;color:#94a3b8;">月底预测</div><div style="font-size:22px;font-weight:700;color:#818cf8;">$${analysis.forecastedCost.toFixed(2)}</div></div>
     </div>
-    <h3 style="margin:24px 0 8px;font-size:15px;">Usage status (all services)</h3>
+    <h3 style="margin:24px 0 8px;font-size:15px;">用量状态（全部服务）</h3>
     ${metricsTable(metrics)}
     ${driversTable(analysis.topDrivers)}
     <p style="margin:24px 0 0;font-size:12px;color:#64748b;">
-      <a href="${appUrl}/" style="color:#818cf8;">Open dashboard</a> ·
-      🔴 billable · 🟡 over free tier (within paid) · 🟢 within free tier
+      <a href="${appUrl}/" style="color:#818cf8;">打开仪表盘</a> ·
+      🔴 将产生计费 · 🟡 超出免费额度（套餐内） · 🟢 免费额度内
+    </p>
+    <p style="margin:8px 0 0;font-size:12px;color:#64748b;">
+      数据来自 Cloudflare 分析 API（约 60 秒聚合延迟，高流量下可能存在采样误差），仅供预警参考，不作为账单依据。
     </p>
   </div>`;
 
   return { subject, html };
 }
 
-async function sendEmail(
-  env: Env,
-  subject: string,
-  html: string,
-  to: string[]
-): Promise<boolean> {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.ALERT_EMAIL_FROM || 'Cloudflare Cost Hub <noreply@0xkaz.com>',
-      to,
-      subject,
-      html,
-    }),
-  });
-  if (!res.ok) {
-    console.error('Resend send failed:', res.status, await res.text());
-    return false;
+// Plain-text digest for IM channels (Telegram / 企业微信). Concise: headline
+// numbers + every metric, tier-flagged, capped so long accounts stay readable.
+function buildText(analysis: ServicesAnalysis, budget: BudgetStatus | null): string {
+  const metrics = allMetrics(analysis);
+  const flagged = noteworthy(metrics);
+  const lines: string[] = [
+    `☁️ Cloudflare Cost Hub — ${analysis.accountName}`,
+    `每日用量摘要（${analysis.month}）`,
+    `预估本月：$${analysis.currentMonthCost.toFixed(2)} ｜ 月底预测：$${analysis.forecastedCost.toFixed(2)}`,
+  ];
+  if (budget) {
+    const mark = budget.exceeded ? '🔴 超支' : budget.nearing ? '🟡 接近' : '🟢 正常';
+    lines.push(`预算：预测 $${budget.forecast.toFixed(2)} / 上限 $${budget.limit.toFixed(2)}（${budget.percentage}%）${mark}`);
   }
-  return true;
+  lines.push('————');
+  const shown = metrics.slice(0, 12);
+  for (const m of shown) {
+    const cost = (m.estimatedCost ?? 0) > 0 ? `，预估 $${m.estimatedCost!.toFixed(2)}` : '';
+    lines.push(`${TIER_EMOJI[m.tier]} ${m.product}·${m.metric}：${compact(m.used)} / ${compact(m.limit)} ${m.unit}（${m.percentage.toFixed(0)}%${cost}）`);
+  }
+  if (metrics.length > shown.length) lines.push(`…其余 ${metrics.length - shown.length} 项从略`);
+  if (flagged.length > 0) lines.push(`⚠️ ${flagged.length} 项指标需要关注`);
+  lines.push('（分析数据约 60 秒延迟、可能有采样误差，仅供预警，非账单）');
+  return lines.join('\n');
+}
+
+function buildPayload(
+  analysis: ServicesAnalysis,
+  budget: BudgetStatus | null,
+  appUrl: string
+): DigestPayload {
+  const { subject, html } = buildEmail(analysis, budget, appUrl);
+  return { subject, text: buildText(analysis, budget), html };
 }
 
 async function getLastSentDate(env: Env): Promise<string | null> {
@@ -214,25 +236,43 @@ export interface AlertResult {
   count?: number;
 }
 
-// Build a usage/cost digest for one account and email it to `to`. Skips empty
-// reports unless `force` is set (the manual test endpoint).
+function channelFlags(setting: {
+  channelEmail: boolean;
+  channelTelegram: boolean;
+  channelWecomBot: boolean;
+  channelWecomApp: boolean;
+}): AlertChannelFlags {
+  return {
+    email: setting.channelEmail,
+    telegram: setting.channelTelegram,
+    wecomBot: setting.channelWecomBot,
+    wecomApp: setting.channelWecomApp,
+  };
+}
+
+// Build a usage/cost digest for one account and push it over every enabled
+// channel. Skips empty reports unless `force` is set (the manual test endpoint).
 async function buildAndSend(
   env: Env,
   account: CloudflareAccountInput,
-  to: string[],
-  force: boolean,
-  budgetLimit: number | null
+  opts: {
+    flags: AlertChannelFlags;
+    emailTo: string[];
+    force: boolean;
+    budgetLimit: number | null;
+    warnThreshold: number;
+  }
 ): Promise<AlertResult> {
   const analysis = await getServicesAnalysis(env, account);
-  const flagged = noteworthy(allMetrics(analysis));
-  const budget = budgetLimit != null ? evaluateBudget(budgetLimit, analysis.forecastedCost) : null;
+  const flagged = noteworthy(allMetrics(analysis), opts.warnThreshold);
+  const budget = opts.budgetLimit != null ? evaluateBudget(opts.budgetLimit, analysis.forecastedCost) : null;
   // A budget overage is always worth sending, even with nothing else to report.
-  if (!force && !budget?.exceeded && flagged.length === 0 && analysis.currentMonthCost === 0) {
+  if (!opts.force && !budget?.exceeded && flagged.length === 0 && analysis.currentMonthCost === 0) {
     return { sent: false, reason: 'Nothing to report' };
   }
-  const appUrl = (env.APP_URL || 'https://cloudflare-cost-hub.0xkaz.com').replace(/\/+$/, '');
-  const { subject, html } = buildEmail(analysis, budget, appUrl);
-  const ok = await sendEmail(env, subject, html, to);
+  const appUrl = (env.APP_URL || '').replace(/\/+$/, '') || 'https://cloudflare-cost-hub.0xkaz.com';
+  const payload = buildPayload(analysis, budget, appUrl);
+  const ok = await sendDigest(env, opts.flags, payload, opts.emailTo);
   return { sent: ok, count: flagged.length };
 }
 
@@ -246,13 +286,17 @@ async function recipientsForUser(env: Env, setting: UserAlertSetting): Promise<s
 }
 
 // Send a single user's daily digest for their connected account. Honors the
-// per-user enable toggle, billing entitlement, and once-per-day idempotency.
+// per-user enable toggle, channel selection, billing entitlement, and
+// once-per-day idempotency.
 export async function runDailyAlertForUser(
   env: Env,
   setting: UserAlertSetting,
   force = false
 ): Promise<AlertResult> {
-  if (!env.RESEND_API_KEY) return { sent: false, reason: 'Alerts not configured' };
+  const flags = channelFlags(setting);
+  if (!flags.email && !flags.telegram && !flags.wecomBot && !flags.wecomApp) {
+    return { sent: false, reason: 'No channel enabled' };
+  }
   if (!setting.enabled) return { sent: false, reason: 'Alerts disabled' };
 
   const today = new Date().toISOString().slice(0, 10);
@@ -267,19 +311,25 @@ export async function runDailyAlertForUser(
   const entitlement = await getAccountEntitlement(env.DB, account.accountId);
   if (!isEntitled(env, entitlement)) return { sent: false, reason: 'Paid plan required' };
 
-  const to = await recipientsForUser(env, setting);
-  if (to.length === 0) return { sent: false, reason: 'No recipient' };
+  const to = flags.email ? await recipientsForUser(env, setting) : [];
 
   const budget = await getBudget(env.DB, setting.userId, account.accountId);
-  const result = await buildAndSend(env, account, to, force, budget?.monthlyLimit ?? null);
+  const result = await buildAndSend(env, account, {
+    flags,
+    emailTo: to,
+    force,
+    budgetLimit: budget?.monthlyLimit ?? null,
+    warnThreshold: setting.warnThreshold || DEFAULT_WARN_THRESHOLD,
+  });
   if (result.sent) await setAlertLastSent(env.DB, setting.userId, today);
   return result;
 }
 
-// Legacy single-tenant digest for the env-configured account. Used only as a
-// fallback when no user has configured per-user alerts, so the original
-// deployment keeps emailing before anyone self-serves.
+// Legacy single-tenant digest for the env-configured account (email only).
+// Used only as a fallback when no user has configured per-user alerts, so the
+// original deployment keeps emailing before anyone self-serves.
 async function runDailyAlertsEnvFallback(env: Env, force: boolean): Promise<AlertResult> {
+  if (!env.RESEND_API_KEY) return { sent: false, reason: 'Alerts not configured' };
   if (!env.CF_ANALYTICS_TOKEN || !env.CF_ACCOUNT_ID) {
     return { sent: false, reason: 'No account configured' };
   }
@@ -292,16 +342,21 @@ async function runDailyAlertsEnvFallback(env: Env, force: boolean): Promise<Aler
   const to = await envRecipients(env);
   if (to.length === 0) return { sent: false, reason: 'No recipient' };
 
-  const result = await buildAndSend(env, acct, to, force, null);
+  const result = await buildAndSend(env, acct, {
+    flags: { email: true, telegram: false, wecomBot: false, wecomApp: false },
+    emailTo: to,
+    force,
+    budgetLimit: null,
+    warnThreshold: DEFAULT_WARN_THRESHOLD,
+  });
   if (result.sent) await setLastSentDate(env, today);
   return result;
 }
 
-// Scheduled entry point: email every enabled (and entitled) user their digest.
-// Falls back to the legacy env-account digest when no user has configured alerts.
+// Scheduled entry point: push every enabled (and entitled) user their digest
+// over their chosen channels. Falls back to the legacy env-account email digest
+// when no user has configured alerts.
 export async function runDailyAlerts(env: Env, force = false): Promise<AlertResult> {
-  if (!env.RESEND_API_KEY) return { sent: false, reason: 'Alerts not configured' };
-
   const settings = await listEnabledAlertSettings(env.DB);
   if (settings.length === 0) {
     return runDailyAlertsEnvFallback(env, force);
