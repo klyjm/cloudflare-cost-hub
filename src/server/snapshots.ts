@@ -90,13 +90,17 @@ export async function captureSnapshot(
   });
 
   // Archive the full snapshot to R2 for durable history (keyed by account).
-  try {
-    await env.BUCKET.put(
-      `snapshots/${account.accountId}/${date}.json`,
-      JSON.stringify({ accountId: account.accountId, date, month: targetMonth, usage })
-    );
-  } catch {
-    // R2 archival is best-effort; the D1 row is the source of truth for trends.
+  // Optional binding: when no R2 bucket is bound this is simply skipped — the
+  // D1 row above is the source of truth for trends.
+  if (env.BUCKET) {
+    try {
+      await env.BUCKET.put(
+        `snapshots/${account.accountId}/${date}.json`,
+        JSON.stringify({ accountId: account.accountId, date, month: targetMonth, usage })
+      );
+    } catch {
+      // R2 archival is best-effort.
+    }
   }
 
   return { month: targetMonth, cost: usage.currentMonthCost, forecast: usage.forecastedCost };

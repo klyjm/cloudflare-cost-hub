@@ -2,7 +2,10 @@ import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-type
 
 export interface Env {
   DB: D1Database;
-  BUCKET: R2Bucket;
+  // Optional R2 archive for full raw usage snapshots (snapshots.ts writes
+  // best-effort inside try/catch). Unbound simply disables the archive copy —
+  // the D1 snapshot rows remain the source of truth for trends.
+  BUCKET?: R2Bucket;
   SESSION_SECRET: string;
   // Cloudflare Analytics API token + account for live cost/usage data.
   // When unset, the dashboard falls back to demo data.
