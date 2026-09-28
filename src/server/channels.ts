@@ -102,13 +102,20 @@ async function sendWecomApp(env: Env, text: string): Promise<ChannelSendResult> 
       env.WECOM_CORP_ID
     )}&corpsecret=${encodeURIComponent(env.WECOM_CORP_SECRET)}`;
     const tokenRes = await fetch(tokenUrl);
-    const tokenJson = (await tokenRes.json().catch(() => ({}))) as {
+    if (!tokenRes.ok) {
+      const body = (await tokenRes.text()).slice(0, 200);
+      console.error('WeCom app gettoken HTTP error:', tokenRes.status, body);
+      return { ok: false, error: `gettoken HTTP ${tokenRes.status}（检查 WECOM_API_BASE 代理）` };
+    }
+    const tokenJson = (await tokenRes.json().catch(() => null)) as {
       access_token?: string;
       errmsg?: string;
-    };
-    if (!tokenJson.access_token) {
-      console.error('WeCom app token failed:', tokenJson.errmsg);
-      return { ok: false, error: `gettoken: ${shortErrmsg(tokenJson.errmsg)}` };
+    } | null;
+    if (!tokenJson?.access_token) {
+      // Empty errmsg here usually means the proxy returned a non-JSON body
+      // (e.g. its own error page) — log it verbatim for diagnosis.
+      console.error('WeCom app token failed:', JSON.stringify(tokenJson)?.slice(0, 200));
+      return { ok: false, error: `gettoken: ${shortErrmsg(tokenJson?.errmsg)}` };
     }
     const res = await fetch(`${base}/cgi-bin/message/send?access_token=${tokenJson.access_token}`, {
       method: 'POST',
