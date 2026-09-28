@@ -293,8 +293,19 @@ async function freshAccessToken(env: Env, userId: string, row: CfTokenRow): Prom
       const refreshed = await refresh(env, await decryptToken(row.refreshToken, key));
       await storeConnection(env, userId, refreshed);
       accessToken = refreshed.access_token;
-    } catch {
-      // Refresh failed; fall through to using the (possibly stale) token.
+    } catch (err) {
+      // Refresh failed. Log the cause (otherwise expiry handling is a black
+      // box) and re-read the row first: a concurrent request may have already
+      // refreshed and rotated the token — its row beats our stale copy.
+      console.error('Token refresh failed:', err instanceof Error ? err.message : String(err));
+      const fresh = await getCfToken(env.DB, userId);
+      if (fresh && fresh.accessToken !== row.accessToken) {
+        try {
+          accessToken = await decryptToken(fresh.accessToken, key);
+        } catch {
+          // keep the stale token
+        }
+      }
     }
   }
   return accessToken;
