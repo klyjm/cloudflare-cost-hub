@@ -70,10 +70,14 @@ async function sendWecomBot(env: Env, text: string): Promise<boolean> {
 }
 
 // 企业微信自建应用消息：gettoken 换 access_token 后调 message/send。
+// 自建应用 API 强制校验调用方 IP（企业可信IP），Workers 的共享出口无法满足，
+// 因此支持 WECOM_API_BASE 覆盖为固定 IP 的代理（TLS 证书有效、Host/SNI 指向
+// qyapi.weixin.qq.com）。群机器人 webhook 无 IP 校验，保持直连不经过代理。
 async function sendWecomApp(env: Env, text: string): Promise<boolean> {
   if (!env.WECOM_CORP_ID || !env.WECOM_CORP_SECRET || !env.WECOM_AGENTID) return false;
+  const base = (env.WECOM_API_BASE || 'https://qyapi.weixin.qq.com').replace(/\/+$/, '');
   try {
-    const tokenUrl = `https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${encodeURIComponent(
+    const tokenUrl = `${base}/cgi-bin/gettoken?corpid=${encodeURIComponent(
       env.WECOM_CORP_ID
     )}&corpsecret=${encodeURIComponent(env.WECOM_CORP_SECRET)}`;
     const tokenRes = await fetch(tokenUrl);
@@ -82,7 +86,7 @@ async function sendWecomApp(env: Env, text: string): Promise<boolean> {
       console.error('WeCom app token failed:', tokenJson.errmsg);
       return false;
     }
-    const res = await fetch(`https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${tokenJson.access_token}`, {
+    const res = await fetch(`${base}/cgi-bin/message/send?access_token=${tokenJson.access_token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

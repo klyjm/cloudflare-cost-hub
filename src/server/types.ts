@@ -29,6 +29,11 @@ export interface Env {
   WECOM_CORP_SECRET?: string;
   WECOM_AGENTID?: string;
   WECOM_TO_USER?: string;
+  // Base URL override for the self-built app API. WeCom enforces a caller-IP
+  // allowlist (企业可信IP) on app-secret API calls, which Workers' shared
+  // egress can never satisfy — point this at a fixed-IP proxy that forwards to
+  // qyapi.weixin.qq.com (valid TLS cert + Host/SNI preserved) to satisfy it.
+  WECOM_API_BASE?: string;
   // Comma-separated allowlist of Cloudflare user ids / login emails that may
   // sign in. Unset or empty keeps upstream behavior (open registration).
   ALLOWED_CF_USERS?: string;
