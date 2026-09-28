@@ -74,7 +74,9 @@ async function sendWecomBot(env: Env, text: string): Promise<ChannelSendResult> 
     const res = await fetch(`https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${env.WECOM_WEBHOOK_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ msgtype: 'markdown', markdown: { content: truncate(text, 4000) } }),
+      // text (not markdown): the WeChat plugin can't render WeCom markdown —
+      // personal-WeChat users would only get an "unsupported type" card.
+      body: JSON.stringify({ msgtype: 'text', text: { content: truncate(text, 2000) } }),
     });
     const json = (await res.json().catch(() => ({}))) as { errcode?: number; errmsg?: string };
     if (!res.ok || (json.errcode ?? 0) !== 0) {
