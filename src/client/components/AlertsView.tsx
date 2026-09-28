@@ -15,6 +15,18 @@ interface AlertSettings {
 
 type ChannelKey = 'email' | 'telegram' | 'wecomBot' | 'wecomApp';
 
+// Human-readable versions of the alert endpoint's failure reasons.
+const REASON_ZH: Record<string, string> = {
+  'Alerts disabled': '告警总开关未打开（勾选上方开关后重试）',
+  'No channel enabled': '未勾选任何推送渠道',
+  'No account connected': '未连接 Cloudflare 账号',
+  'No recipient': '邮件渠道未配置收件人',
+  'Alerts not configured': '服务端未配置任何渠道凭据',
+  'Already sent today': '今天的摘要已发送过',
+  'Nothing to report': '没有值得报告的内容',
+  'Paid plan required': '需要付费套餐',
+};
+
 const CHANNEL_META: Array<{
   key: ChannelKey;
   label: string;
@@ -91,7 +103,7 @@ export function AlertsView() {
       setTestMsg(
         res.ok && body.sent
           ? '测试告警已发送'
-          : `未发送：${body.reason === 'No channel enabled' ? '未启用任何渠道' : body.reason || '错误'}`
+          : `未发送：${REASON_ZH[body.reason ?? ''] ?? body.reason ?? '错误'}`
       );
     } catch {
       setTestMsg('测试告警发送失败');
@@ -132,7 +144,7 @@ export function AlertsView() {
             }}
             className="h-4 w-4 rounded border-slate-600 bg-slate-950"
           />
-          给我发送每日摘要
+          启用告警推送（总开关，每日摘要与测试发送都受它控制）
         </label>
 
         <label className="mb-1 block text-sm font-medium text-slate-300">
