@@ -103,10 +103,19 @@ async function sendWecomApp(env: Env, text: string): Promise<ChannelSendResult> 
     )}&corpsecret=${encodeURIComponent(env.WECOM_CORP_SECRET)}`;
     const tokenRes = await fetch(tokenUrl);
     if (!tokenRes.ok) {
-      const body = (await tokenRes.text()).slice(0, 200);
-      const host = new URL(tokenUrl).host;
-      console.error('WeCom app gettoken HTTP error:', tokenRes.status, 'host:', host, body);
-      return { ok: false, error: `gettoken HTTP ${tokenRes.status} @ ${host}（检查 WECOM_API_BASE 代理）` };
+      const u = new URL(tokenUrl);
+      // Path is not sensitive; the query (corpid/secret) is never logged.
+      const body = (await tokenRes.text()).slice(0, 500);
+      const hdrs = [...tokenRes.headers.entries()].map(([k, v]) => `${k}: ${v}`).join(' | ');
+      console.error(
+        'WeCom app gettoken HTTP error:',
+        tokenRes.status,
+        `url: ${u.origin}${u.pathname}`,
+        'headers:',
+        hdrs || '(none)',
+        body
+      );
+      return { ok: false, error: `gettoken HTTP ${tokenRes.status} @ ${u.host}${u.pathname}` };
     }
     const tokenJson = (await tokenRes.json().catch(() => null)) as {
       access_token?: string;
