@@ -104,17 +104,26 @@ export function AlertsView() {
         method: 'POST',
         credentials: 'same-origin',
       });
-      const body = (await res.json()) as { sent?: boolean; reason?: string };
-      setTestMsg(
-        res.ok && body.sent
-          ? '测试告警已发送'
-          : `未发送：${REASON_ZH[body.reason ?? ''] ?? body.reason ?? '错误'}`
-      );
+      const body = (await res.json().catch(() => ({}))) as {
+        sent?: boolean;
+        reason?: string;
+        error?: string;
+        detail?: string;
+      };
+      if (res.ok && body.sent) {
+        setTestMsg('测试告警已发送');
+      } else {
+        // reason: graceful skip from the alert pipeline; error/detail: the
+        // endpoint's 502 body when the pipeline itself threw.
+        const cause =
+          REASON_ZH[body.reason ?? ''] ?? body.reason ?? body.detail ?? body.error ?? '未知错误';
+        setTestMsg(`未发送：${cause}`);
+      }
     } catch {
-      setTestMsg('测试告警发送失败');
+      setTestMsg('测试告警发送失败（网络错误）');
     } finally {
       setTesting(false);
-      setTimeout(() => setTestMsg(null), 5000);
+      setTimeout(() => setTestMsg(null), 8000);
     }
   };
 
