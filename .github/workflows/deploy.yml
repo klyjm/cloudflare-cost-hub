@@ -53,6 +53,27 @@ jobs:
           fi
           echo "D1_DATABASE_ID=$DB_ID" >> "$GITHUB_ENV"
 
+      # KV cache for dashboard/services/trend responses (5-10 min TTL with
+      # stale-while-revalidate) so repeat clicks don't re-hit the rate-limited
+      # GraphQL Analytics API (300 queries / 5 min per user).
+      - name: Ensure KV namespace exists
+        run: |
+          set -euo pipefail
+          KV_TITLE="cloudflare-cost-hub-cache"
+          LIST=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces")
+          KV_ID=$(printf '%s' "$LIST" | jq -r --arg t "$KV_TITLE" '.result[] | select(.title == $t) | .id' | head -n1)
+          if [ -z "$KV_ID" ]; then
+            KV_ID=$(curl -fsS -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"title\":\"$KV_TITLE\"}" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces" | jq -r '.result.id')
+            echo "Created KV namespace $KV_TITLE ($KV_ID)"
+          else
+            echo "Reusing existing KV namespace $KV_TITLE ($KV_ID)"
+          fi
+          echo "KV_NAMESPACE_ID=$KV_ID" >> "$GITHUB_ENV"
+
       # wrangler.toml stays out of the repo (gitignored upstream): generated in
       # CI from the ensured resource IDs. keep_vars preserves vars/secrets that
       # are managed in the Cloudflare dashboard across deploys.
@@ -74,6 +95,10 @@ jobs:
           database_name = "DATABASE_NAME_PLACEHOLDER"
           database_id = "DATABASE_ID_PLACEHOLDER"
 
+          [[kv_namespaces]]
+          binding = "CACHE"
+          id = "KV_ID_PLACEHOLDER"
+
           # Workers Logs: makes console output from the daily cron (snapshot /
           # alert failures) visible in the Cloudflare dashboard.
           [observability]
@@ -82,7 +107,7 @@ jobs:
           [triggers]
           crons = ["0 1 * * *"]
           EOF
-          sed -i "s/DATABASE_NAME_PLACEHOLDER/$D1_NAME/; s/DATABASE_ID_PLACEHOLDER/$D1_DATABASE_ID/" wrangler.toml
+          sed -i "s/DATABASE_NAME_PLACEHOLDER/$D1_NAME/; s/DATABASE_ID_PLACEHOLDER/$D1_DATABASE_ID/; s/KV_ID_PLACEHOLDER/$KV_NAMESPACE_ID/" wrangler.toml
 
       - name: Apply D1 migrations
         run: npx wrangler d1 migrations apply "$D1_NAME" --remote
