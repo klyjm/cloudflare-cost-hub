@@ -56,6 +56,7 @@ settings.get('/alerts', async (c) => {
   return c.json({
     email: s?.email ?? '',
     enabled: s?.enabled ?? true,
+    digestEnabled: s?.digestEnabled ?? true,
     warnThreshold: s?.warnThreshold ?? 80,
     channels: {
       email: s?.channelEmail ?? true,
@@ -91,6 +92,7 @@ settings.post(
     z.object({
       email: z.string(),
       enabled: z.boolean(),
+      digestEnabled: z.boolean().default(true),
       warnThreshold: z.number().int().min(1).max(100).default(80),
       channels: channelsSchema.default({
         email: true,
@@ -102,7 +104,7 @@ settings.post(
   ),
   async (c) => {
     const session = c.get('session' as never) as { userId: string };
-    const { email, enabled, warnThreshold, channels } = c.req.valid('json');
+    const { email, enabled, digestEnabled, warnThreshold, channels } = c.req.valid('json');
     // Allow comma-separated addresses; validate each one looks like an email.
     const list = email.split(',').map((e) => e.trim()).filter(Boolean);
     if (channels.email && list.some((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))) {
@@ -111,10 +113,18 @@ settings.post(
     await upsertUserAlertSetting(c.env.DB, session.userId, {
       email: list.join(',') || null,
       enabled,
+      digestEnabled,
       warnThreshold,
       channels,
     });
-    return c.json({ ok: true, email: list.join(','), enabled, warnThreshold, channels });
+    return c.json({
+      ok: true,
+      email: list.join(','),
+      enabled,
+      digestEnabled,
+      warnThreshold,
+      channels,
+    });
   }
 );
 

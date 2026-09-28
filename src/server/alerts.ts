@@ -252,6 +252,11 @@ function channelFlags(setting: {
 
 // Build a usage/cost digest for one account and push it over every enabled
 // channel. Skips empty reports unless `force` is set (the manual test endpoint).
+// Send rules (when not forced):
+//   - a budget overage always sends;
+//   - digest mode (daily digest on): send when anything is noteworthy;
+//   - alert-only mode (daily digest off): send only when something is actually
+//     billable — near-threshold warnings and routine stats stay silent.
 async function buildAndSend(
   env: Env,
   account: CloudflareAccountInput,
@@ -261,19 +266,32 @@ async function buildAndSend(
     force: boolean;
     budgetLimit: number | null;
     warnThreshold: number;
+    digest: boolean;
   }
 ): Promise<AlertResult> {
   const analysis = await getServicesAnalysis(env, account);
-  const flagged = noteworthy(allMetrics(analysis), opts.warnThreshold);
+  const metrics = allMetrics(analysis);
+  const flagged = noteworthy(metrics, opts.warnThreshold);
   const budget = opts.budgetLimit != null ? evaluateBudget(opts.budgetLimit, analysis.forecastedCost) : null;
-  // A budget overage is always worth sending, even with nothing else to report.
-  if (!opts.force && !budget?.exceeded && flagged.length === 0 && analysis.currentMonthCost === 0) {
-    return { sent: false, reason: 'Nothing to report' };
+  if (!opts.force && !budget?.exceeded) {
+    const billable = metrics.some((m) => (m.estimatedCost ?? 0) > 0);
+    const skip = opts.digest ? flagged.length === 0 : !billable;
+    if (skip) {
+      return {
+        sent: false,
+        reason: opts.digest ? 'Nothing to report' : 'No alert condition',
+        count: flagged.length,
+      };
+    }
   }
   const appUrl = (env.APP_URL || '').replace(/\/+$/, '') || 'https://cloudflare-cost-hub.0xkaz.com';
   const payload = buildPayload(analysis, budget, appUrl);
-  const ok = await sendDigest(env, opts.flags, payload, opts.emailTo);
-  return { sent: ok, count: flagged.length };
+  const send = await sendDigest(env, opts.flags, payload, opts.emailTo);
+  return {
+    sent: send.ok,
+    count: flagged.length,
+    reason: send.ok ? undefined : send.errors.join('；'),
+  };
 }
 
 // Resolve a user's recipients: their configured address(es), else their login
@@ -320,6 +338,7 @@ export async function runDailyAlertForUser(
     force,
     budgetLimit: budget?.monthlyLimit ?? null,
     warnThreshold: setting.warnThreshold || DEFAULT_WARN_THRESHOLD,
+    digest: setting.digestEnabled,
   });
   if (result.sent) await setAlertLastSent(env.DB, setting.userId, today);
   return result;
@@ -348,6 +367,7 @@ async function runDailyAlertsEnvFallback(env: Env, force: boolean): Promise<Aler
     force,
     budgetLimit: null,
     warnThreshold: DEFAULT_WARN_THRESHOLD,
+    digest: true,
   });
   if (result.sent) await setLastSentDate(env, today);
   return result;

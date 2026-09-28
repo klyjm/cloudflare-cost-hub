@@ -13,10 +13,11 @@ beforeEach(() => {
 afterEach(() => t.close());
 
 describe('user_alert_settings', () => {
-  it('round-trips recipient + enabled + threshold/channels, defaulting to the free plan', async () => {
+  it('round-trips recipient + enabled + digest + threshold/channels, defaulting to the free plan', async () => {
     await upsertUserAlertSetting(t.db, 'u1', {
       email: 'a@x.com',
       enabled: true,
+      digestEnabled: false,
       warnThreshold: 90,
       channels: { email: true, telegram: true, wecomBot: false, wecomApp: false },
     });
@@ -25,6 +26,7 @@ describe('user_alert_settings', () => {
       userId: 'u1',
       email: 'a@x.com',
       enabled: true,
+      digestEnabled: false,
       plan: 'free',
       paidUntil: null,
       warnThreshold: 90,
@@ -35,27 +37,31 @@ describe('user_alert_settings', () => {
     });
   });
 
-  it('falls back to the default threshold for legacy rows', async () => {
+  it('falls back to the default threshold and digest-on for legacy rows', async () => {
     await upsertUserAlertSetting(t.db, 'u1', {
       email: 'a@x.com',
       enabled: true,
+      digestEnabled: true,
       warnThreshold: 80,
       channels: { email: true, telegram: false, wecomBot: false, wecomApp: false },
     });
     const s = await getUserAlertSetting(t.db, 'u1');
     expect(s?.warnThreshold).toBe(80);
+    expect(s?.digestEnabled).toBe(true);
   });
 
   it('lists only enabled users', async () => {
     await upsertUserAlertSetting(t.db, 'u1', {
       email: 'a@x.com',
       enabled: true,
+      digestEnabled: true,
       warnThreshold: 80,
       channels: { email: true, telegram: false, wecomBot: false, wecomApp: false },
     });
     await upsertUserAlertSetting(t.db, 'u2', {
       email: 'b@x.com',
       enabled: false,
+      digestEnabled: true,
       warnThreshold: 80,
       channels: { email: true, telegram: false, wecomBot: false, wecomApp: false },
     });

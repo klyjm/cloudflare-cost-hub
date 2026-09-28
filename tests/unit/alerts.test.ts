@@ -9,6 +9,7 @@ const baseSetting: UserAlertSetting = {
   userId: 'user-1',
   email: 'a@example.com',
   enabled: true,
+  digestEnabled: true,
   lastSentDate: null,
   plan: 'free',
   paidUntil: null,

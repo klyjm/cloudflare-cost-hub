@@ -188,6 +188,7 @@ dashboard.post('/alert-test', async (c) => {
       userId: session.userId,
       email: null,
       enabled: true,
+      digestEnabled: true,
       lastSentDate: null,
       plan: 'free' as const,
       paidUntil: null,

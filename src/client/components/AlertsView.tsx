@@ -4,6 +4,7 @@ import { Mail, Send, Bot, MessageSquare, Building2 } from 'lucide-react';
 interface AlertSettings {
   email: string;
   enabled: boolean;
+  digestEnabled: boolean;
   warnThreshold: number;
   channels: { email: boolean; telegram: boolean; wecomBot: boolean; wecomApp: boolean };
   available: { email: boolean; telegram: boolean; wecomBot: boolean; wecomApp: boolean };
@@ -24,6 +25,7 @@ const REASON_ZH: Record<string, string> = {
   'Alerts not configured': '服务端未配置任何渠道凭据',
   'Already sent today': '今天的摘要已发送过',
   'Nothing to report': '没有值得报告的内容',
+  'No alert condition': '未触发告警（无计费项、未超预算）',
   'Paid plan required': '需要付费套餐',
 };
 
@@ -42,6 +44,7 @@ const CHANNEL_META: Array<{
 export function AlertsView() {
   const [email, setEmail] = useState('');
   const [enabled, setEnabled] = useState(true);
+  const [digestEnabled, setDigestEnabled] = useState(true);
   const [warnThreshold, setWarnThreshold] = useState(80);
   const [channels, setChannels] = useState<AlertSettings['channels']>({
     email: true,
@@ -63,6 +66,7 @@ export function AlertsView() {
         if (!d) return;
         setEmail(d.email);
         setEnabled(d.enabled);
+        setDigestEnabled(d.digestEnabled);
         setWarnThreshold(d.warnThreshold);
         setChannels(d.channels);
         setAvailable(d.available);
@@ -71,8 +75,9 @@ export function AlertsView() {
       .catch(() => undefined);
   }, []);
 
-  const save = async (next?: { enabled?: boolean }) => {
+  const save = async (next?: { enabled?: boolean; digestEnabled?: boolean }) => {
     const nextEnabled = next?.enabled ?? enabled;
+    const nextDigest = next?.digestEnabled ?? digestEnabled;
     setSaving(true);
     setMsg(null);
     try {
@@ -80,7 +85,7 @@ export function AlertsView() {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, enabled: nextEnabled, warnThreshold, channels }),
+        body: JSON.stringify({ email, enabled: nextEnabled, digestEnabled: nextDigest, warnThreshold, channels }),
       });
       setMsg(res.ok ? '已保存' : '邮箱地址无效');
     } catch {
@@ -118,7 +123,9 @@ export function AlertsView() {
       <div>
         <h2 className="text-2xl font-bold">告警通知</h2>
         <p className="text-sm text-slate-400">
-          每天推送一封摘要：有指标开始计费、接近免费额度上限，或月底预测超出预算时，主题会带上警示标记。
+          推送分两类：<span className="text-slate-300">告警</span>（指标开始计费，或月底预测超出预算）与
+          <span className="text-slate-300">每日摘要</span>（每天的用量统计）。总开关关闭时全部静默；
+          摘要关闭后，只有真正告警时才推送。
         </p>
       </div>
 
@@ -145,6 +152,25 @@ export function AlertsView() {
             className="h-4 w-4 rounded border-slate-600 bg-slate-950"
           />
           启用告警推送（总开关，每日摘要与测试发送都受它控制）
+        </label>
+
+        <label className="mb-4 flex items-start gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={digestEnabled}
+            onChange={(e) => {
+              setDigestEnabled(e.target.checked);
+              void save({ digestEnabled: e.target.checked });
+            }}
+            disabled={!enabled}
+            className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 disabled:opacity-50"
+          />
+          <span>
+            每日摘要
+            <span className="ml-1 text-xs text-slate-500">
+              每天一封用量统计（含接近阈值的提醒）；关闭后仅在真正告警时推送
+            </span>
+          </span>
         </label>
 
         <label className="mb-1 block text-sm font-medium text-slate-300">
