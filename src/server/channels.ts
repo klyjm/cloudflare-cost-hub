@@ -104,8 +104,9 @@ async function sendWecomApp(env: Env, text: string): Promise<ChannelSendResult> 
     const tokenRes = await fetch(tokenUrl);
     if (!tokenRes.ok) {
       const body = (await tokenRes.text()).slice(0, 200);
-      console.error('WeCom app gettoken HTTP error:', tokenRes.status, body);
-      return { ok: false, error: `gettoken HTTP ${tokenRes.status}（检查 WECOM_API_BASE 代理）` };
+      const host = new URL(tokenUrl).host;
+      console.error('WeCom app gettoken HTTP error:', tokenRes.status, 'host:', host, body);
+      return { ok: false, error: `gettoken HTTP ${tokenRes.status} @ ${host}（检查 WECOM_API_BASE 代理）` };
     }
     const tokenJson = (await tokenRes.json().catch(() => null)) as {
       access_token?: string;
